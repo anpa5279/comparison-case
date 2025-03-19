@@ -43,7 +43,7 @@ EoF_s
 
 chmod +x launch.sh
 
-julia --project -e 'using Pkg; Pkg.resolve()'
+#julia --project -e 'using Pkg; Pkg.resolve()'
 # Tell MPI that we would like to use the system binary we loaded with module load cray-mpich
 julia --project -e 'using MPIPreferences; MPIPreferences.use_system_binary(vendor="cray")'
 # Only need to run if you want to reset or update things (did you update the amoun tof  nodes and processors?)

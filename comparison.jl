@@ -19,32 +19,6 @@ end
 #defaults, these can be changed directly below
 params = Params(32, 32, 32, 128.0, 128.0,160.0, 10.0)
 
-#functions
-function stokes_velocity(z)
-    a = 0.1
-    b = 5000.0
-    Lf = b - a
-    nf = 3^9
-    df = Lf / nf
-    σ = a + 0.5 * df
-    α = 0.00615
-    g_Earth = 9.81
-    fₚ = 2π * 0.13 * g_Earth / params.u₁₀
-    u = 0.0
-    for _ in 1:nf
-        u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z / g_Earth - (fₚ / σ)^4)
-        σ = σ + df
-    end 
-    return df * u
-end
-
-function dstokes_dz(z, t)
-    u0 = stokes_velocity(z)
-    u1 = stokes_velocity(z + 1e-6)
-    dudz = (u1 - u0) / (1e-6)
-    return dudz
-end 
-
 # Automatically distributing among available processors
 arch = Distributed(GPU())
 @show arch
@@ -81,6 +55,32 @@ S_bcs = FieldBoundaryConditions(top=evaporation_bc)
 cᴰ = 2.5e-3 # dimensionless drag coefficient
 ρₐ = 1.225  # kg m⁻³, average density of air at sea-level
 τx = - ρₐ / ρₒ * cᴰ * params.u₁₀ * abs(params.u₁₀) # m² s⁻², surface stress
+
+#functions
+function stokes_velocity(z)
+    a = 0.1
+    b = 5000.0
+    Lf = b - a
+    nf = 3^9
+    df = Lf / nf
+    σ = a + 0.5 * df
+    α = 0.00615
+    g_Earth = 9.81
+    fₚ = 2π * 0.13 * g_Earth / params.u₁₀
+    u = 0.0
+    for _ in 1:nf
+        u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z / g_Earth - (fₚ / σ)^4)
+        σ = σ + df
+    end 
+    return df * u
+end
+
+function dstokes_dz(z, t)
+    u0 = stokes_velocity(z)
+    u1 = stokes_velocity(z + 1e-6)
+    dudz = (u1 - u0) / (1e-6)
+    return dudz
+end 
 
 uˢ(z) = stokes_velocity(z)
 
