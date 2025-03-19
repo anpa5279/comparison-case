@@ -41,6 +41,13 @@ function stokes_velocity(z, u10)
     return df * u
 end
 
+function dstokes_dz(z, t)
+    u0 = stokes_velocity(z)
+    u1 = stokes_velocity(z + 1e-6)
+    dudz = (u1 - u0) / (1e-6)
+    return dudz
+end 
+
 # Automatically distributing among available processors
 arch = Distributed(GPU())
 @show arch
@@ -81,7 +88,7 @@ cᴰ = 2.5e-3 # dimensionless drag coefficient
 
 uˢ(z) = stokes_velocity(z, u₁₀)
 
-∂z_uˢ(z, t) = 1 / vertical_scale * Uˢ * exp(z / vertical_scale)
+∂z_uˢ(z, t) = dstokes_dz(z, t)
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
