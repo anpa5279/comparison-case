@@ -28,6 +28,13 @@ function stokes_velocity(z)
     return df * u
 end
 
+function dstokes_dz(z, t)
+    u0 = stokes_velocity(z)
+    u1 = stokes_velocity(z + 1e-6)
+    dudz = (u1 - u0) / (1e-6)
+    return dudz
+end 
+
 function plot()
     #grid setup
     grid = RectilinearGrid(size = 128, z = (-96.0, 0.0), topology=(Flat, Flat, Bounded))
@@ -35,25 +42,34 @@ function plot()
     Lz = grid.Lz
     z = grid.z.cᵃᵃᶜ[1:Nz]
     u_data = Array{Float64}(undef, (1, 1, grid.Nz))
-    @show(u_data)
+    dudz_data = Array{Float64}(undef, (1, 1, grid.Nz))
 
     #calculating stokes drift in z-direction
     for k in 1:Nz
         z_pt = z[k]
         u_data[k] = stokes_velocity(z_pt)
+        dudz_data[k] = dstokes_dz(z_pt, 0.0)
     end
 
-    @show u_data
-
     u = FieldTimeSeries{Face, Center, Center}(grid, 0.0)
-    u .= u_data
+    dudz = FieldTimeSeries{Face, Center, Center}(grid, 0.0)
 
-    @show u
-    #plotting
+    u .= u_data
+    dudz .= dudz_data
+
+    #plotting velocity profile
     n = Observable(1)
     fig = Figure()
     ax = Axis(fig[1, 1], xlabel = "uˢ [m/s]", ylabel = "z [m]", title = "Stokes drift")
     Uₙ = @lift view(u[$n], 1, 1, :)
-    lines!(ax, Uₙ, color = :blue)
+    lines!(ax, Uₙ)
     fig 
+    save("stokes_drift.png", fig)
+    #plotting velocity gradient profile
+    fig2 = Figure()
+    ax2 = Axis(fig2[1, 1], xlabel = "duˢ/dz [1/s]", ylabel = "z [m]", title = "Stokes drift gradient")
+    dUₙ = @lift view(dudz[$n], 1, 1, :)
+    lines!(ax2, dUₙ)
+    fig2
+    save("stokes_drift_gradient.png", fig2)
 end 

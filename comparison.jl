@@ -18,8 +18,30 @@ end
 #defaults, these can be changed directly below
 params = Params(32, 32, 32, 128.0, 128.0,160.0)
 
-# Automatically distributes among available processors
+#functions
+function stokes_kernel(f, z, u10)
+    α = 0.00615
+    g = 9.81
+    fₚ = 2π * 0.13 * g / u10
+    return 2.0 * α * g / (fₚ * f) * exp(2.0 * f^2 * z / g - (fₚ / f)^4)
+end
 
+function stokes_velocity(z, u10)
+    a = 0.1
+    b = 5000.0
+    Lf = b - a
+    nf = 3^9
+    df = Lf / nf
+    σ = a + 0.5 * df
+    u = 0.0
+    for _ in 1:nf
+        u = u + stokes_kernel(σ, z, u10)
+        σ = σ + df
+    end 
+    return df * u
+end
+
+# Automatically distributing among available processors
 arch = Distributed(GPU())
 @show arch
 rank = arch.local_rank
@@ -29,7 +51,7 @@ println("Hello from process $rank out of $Nranks")
 grid = RectilinearGrid(arch; size=(params.Nx, params.Ny, params.Nz), extent=(params.Lx, params.Ly, params.Lz))
 @show grid
 
-
+# temperature and salinity boundary conditions
 buoyancy = SeawaterBuoyancy()
 
 Q = 1e-6 / hour # [°C s⁻¹]
@@ -51,60 +73,15 @@ evaporation_bc = FluxBoundaryCondition(Jˢ, field_dependencies=:S, parameters= e
 S_bcs = FieldBoundaryConditions(top=evaporation_bc)
 @show S_bcs
 
-# calculating stokes drift from donelan 1985
-function uˢ(z) 
-    wavenumber = 2π / wavelength # m⁻¹
-    frequency = sqrt(g_Earth * wavenumber) # s⁻¹
-    range_min = 0.1
-    range_max = 5000.0
-    #  Stokes drift 
-    Uˢ = 0.063 # m s⁻¹
-
-    # donelan parameters from 1985 paper. this is for th vertical scale
-    ann = 0.00615
-    bnn = 1.0
-    f2w = 0.13
-    f_p = f2w*g_Earth/Uˢ
-    sigma_p  = pi2*f_p
-    for j in 1:10
-        if j==1
-            sigma = 0.5*(a+range_max)
-            wave_spec =  (ann*g_Earth*g_Earth/(sigma_p*sigma^4))*exp(-bnn*(sigma_p/sigma)^4)
-            stokes_ker = 2.0*(wave_spec*sigma^3)*exp(2.0*sigma*sigma*z/g_Earth)/g_Earth
-        else
-            tnm   = 3^(j-2)
-            del  = (range_max - a)/(3.0*tnm)
-            ddel = del + del
-            sigma    = a + 0.5*del
-            sum = 0.0
-
-            for i in 1:tnm
-                wave_spec =  (ann*g_Earth*g_Earth/(sigma_p*sigma^4))*exp(-bnn*(sigma_p/sigma)^4)
-                stokes_ker = 2.0*(wave_spec*sigma^3)*exp(2.0*sigma*sigma*z/g_Earth)/g_Earth
-                sum = sum + stokes_ker
-                sigma   = sigma + ddel
-                wave_spec =  (ann*g_Earth*g_Earth/(sigma_p*sigma^4))*exp(-bnn*(sigma_p/sigma)^4)
-                stokes_ker = 2.0*(wave_spec*sigma^3)*exp(2.0*sigma*sigma*z/g_Earth)/g_Earth
-                sum = sum + stokes_ker
-                sigma   = sigma + del
-            end
-            s = (s + (range_max - a)*sum/tnm)/3.0
-        end
-    end 
-    return 
-end
-
-
-
-@inline uˢ(z)
-
-@inline ∂z_uˢ(z, t) = 1 / vertical_scale * Uˢ * exp(z / vertical_scale)
-
-
+# Stokes drift profile
 u₁₀ = 10    # m s⁻¹, average wind velocity 10 meters above the ocean
 cᴰ = 2.5e-3 # dimensionless drag coefficient
 ρₐ = 1.225  # kg m⁻³, average density of air at sea-level
 τx = - ρₐ / ρₒ * cᴰ * u₁₀ * abs(u₁₀) # m² s⁻², surface stress
+
+uˢ(z) = stokes_velocity(z, u₁₀)
+
+∂z_uˢ(z, t) = 1 / vertical_scale * Uˢ * exp(z / vertical_scale)
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
