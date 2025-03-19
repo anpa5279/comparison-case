@@ -1,0 +1,9 @@
+core
+daf
+outputs/
+outputs.tar.gz
+*.sh
+copmarison_case.mp4
+test.o*
+*.png
+*.mp4
