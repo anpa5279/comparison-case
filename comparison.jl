@@ -13,29 +13,26 @@ mutable struct Params
     Lx::Float64
     Ly::Float64     # (m) domain horizontal extents
     Lz::Float64     # (m) domain depth 
+    u₁₀::Float64    # (m s⁻¹) wind speed at 10 meters above the ocean
 end
 
 #defaults, these can be changed directly below
-params = Params(32, 32, 32, 128.0, 128.0,160.0)
+params = Params(32, 32, 32, 128.0, 128.0,160.0, 10.0)
 
 #functions
-function stokes_kernel(f, z, u10)
-    α = 0.00615
-    g = 9.81
-    fₚ = 2π * 0.13 * g / u10
-    return 2.0 * α * g / (fₚ * f) * exp(2.0 * f^2 * z / g - (fₚ / f)^4)
-end
-
-function stokes_velocity(z, u10)
+function stokes_velocity(z)
     a = 0.1
     b = 5000.0
     Lf = b - a
     nf = 3^9
     df = Lf / nf
     σ = a + 0.5 * df
+    α = 0.00615
+    g_Earth = 9.81
+    fₚ = 2π * 0.13 * g_Earth / params.u₁₀
     u = 0.0
     for _ in 1:nf
-        u = u + stokes_kernel(σ, z, u10)
+        u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z / g_Earth - (fₚ / σ)^4)
         σ = σ + df
     end 
     return df * u
@@ -81,12 +78,11 @@ S_bcs = FieldBoundaryConditions(top=evaporation_bc)
 @show S_bcs
 
 # Stokes drift profile
-u₁₀ = 10    # m s⁻¹, average wind velocity 10 meters above the ocean
 cᴰ = 2.5e-3 # dimensionless drag coefficient
 ρₐ = 1.225  # kg m⁻³, average density of air at sea-level
-τx = - ρₐ / ρₒ * cᴰ * u₁₀ * abs(u₁₀) # m² s⁻², surface stress
+τx = - ρₐ / ρₒ * cᴰ * params.u₁₀ * abs(params.u₁₀) # m² s⁻², surface stress
 
-uˢ(z) = stokes_velocity(z, u₁₀)
+uˢ(z) = stokes_velocity(z)
 
 ∂z_uˢ(z, t) = dstokes_dz(z, t)
 
@@ -127,7 +123,7 @@ fields_to_output = merge(model.velocities, model.tracers)
 
 simulation.output_writers[:fields] = JLD2OutputWriter(model, fields_to_output,
                                                       schedule = TimeInterval(output_interval),
-                                                      filename = "camparison_fields$rank.jld2",
+                                                      filename = "comparison_fields_.jld2",
                                                       overwrite_existing = true,
                                                       with_halos = false)
 
@@ -140,7 +136,7 @@ wv = Average(w * v, dims=(1, 2))
 
 simulation.output_writers[:averages] = JLD2OutputWriter(model, (; U, V, wu, wv),
                                                         schedule = AveragedTimeInterval(output_interval, window=2minutes),
-                                                        filename = "comparison_averages_$rank.jld2",
+                                                        filename = "comparison_averages_.jld2",
                                                         overwrite_existing = true,
                                                         with_halos = false)
 
