@@ -50,4 +50,4 @@ julia --project -e 'using MPI; using CUDA; CUDA.precompile_runtime()'
 # 2. Update packages to the environment that we need to use. not always necessary
 #julia --project -e 'using Pkg; Pkg.add("MPI"); Pkg.add("MPIPreferences"); Pkg.add("CUDA"); Pkg.add("Oceananigans"); Pkg.add("CairoMakie"); Pkg.add("Printf")'
 # Finally, let's run this thing
-mpiexec -n 4 -ppn 4 ./launch.sh julia --project langmuir_turb.jl
+mpiexec -n 4 -ppn 4 ./launch.sh julia --project comparison.jl
