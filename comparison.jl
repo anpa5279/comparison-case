@@ -79,9 +79,9 @@ function dstokes_dz(z)
     return dudz
 end 
 
-@inline uˢ(z) = stokes_velocity(z)
+uˢ(z) = stokes_velocity(z)
 
-@inline ∂z_uˢ(z, t) = dstokes_dz(z)
+∂z_uˢ(z, t) = dstokes_dz(z)
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
