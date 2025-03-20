@@ -20,7 +20,7 @@ end
 params = Params(32, 32, 32, 128.0, 128.0,160.0)
 
 #global variables
-u₁₀ = 10.0 # (m s⁻¹) wind speed at 10 meters above the ocean
+global u₁₀ = 10.0 # (m s⁻¹) wind speed at 10 meters above the ocean
 
 # Automatically distributing among available processors
 arch = Distributed(GPU())
