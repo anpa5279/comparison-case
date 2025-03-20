@@ -42,13 +42,7 @@ T_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Q / (ρₒ * cᴾ)),
 
 @show T_bcs
 
-@inline Jˢ(x, y, t, S, evaporation_rate) = - evaporation_rate * S # [salinity unit] m s⁻¹
-
-const evaporation_rate = 1e-3 / hour # m s⁻¹
-
-evaporation_bc = FluxBoundaryCondition(Jˢ, field_dependencies=:S, parameters= evaporation_rate)
-
-S_bcs = FieldBoundaryConditions(top=evaporation_bc)
+S_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0.0)) # no salt flux
 @show S_bcs
 
 # Stokes drift profile
