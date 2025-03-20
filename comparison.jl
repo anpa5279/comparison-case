@@ -6,6 +6,7 @@ using Oceananigans.DistributedComputations
 using Oceananigans.Units: minute, minutes, hours, hour
 using Oceananigans.BuoyancyFormulations: g_Earth
 
+#defining parameters
 mutable struct Params
     Nx::Int
     Ny::Int     # number of points in each of horizontal directions
@@ -13,11 +14,13 @@ mutable struct Params
     Lx::Float64
     Ly::Float64     # (m) domain horizontal extents
     Lz::Float64     # (m) domain depth 
-    u₁₀::Float64    # (m s⁻¹) wind speed at 10 meters above the ocean
 end
 
 #defaults, these can be changed directly below
-params = Params(32, 32, 32, 128.0, 128.0,160.0, 10.0)
+params = Params(32, 32, 32, 128.0, 128.0,160.0)
+
+#global variables
+u₁₀ = 10.0 # (m s⁻¹) wind speed at 10 meters above the ocean
 
 # Automatically distributing among available processors
 arch = Distributed(GPU())
@@ -48,7 +51,7 @@ S_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0.0)) # no salt flux
 # Stokes drift profile
 cᴰ = 2.5e-3 # dimensionless drag coefficient
 ρₐ = 1.225  # kg m⁻³, average density of air at sea-level
-τx = - ρₐ / ρₒ * cᴰ * params.u₁₀ * abs(params.u₁₀) # m² s⁻², surface stress
+τx = - ρₐ / ρₒ * cᴰ * u₁₀ * abs(u₁₀) # m² s⁻², surface stress
 
 #functions
 function stokes_velocity(z)
@@ -60,9 +63,9 @@ function stokes_velocity(z)
     σ = a + 0.5 * df
     α = 0.00615
     g_Earth = 9.81
-    fₚ = 2π * 0.13 * g_Earth / params.u₁₀
+    fₚ = 2π * 0.13 * g_Earth / u₁₀
     u = 0.0
-    for _ in 1:nf
+    for i in 1:nf
         u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z / g_Earth - (fₚ / σ)^4)
         σ = σ + df
     end 
