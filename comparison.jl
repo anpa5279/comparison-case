@@ -75,7 +75,7 @@ function stokes_velocity(z)
     return df * u
 end
 
-function dstokes_dz(z, t)
+function dstokes_dz(z)
     u0 = stokes_velocity(z)
     u1 = stokes_velocity(z + 1e-6)
     dudz = (u1 - u0) / (1e-6)
@@ -84,7 +84,7 @@ end
 
 uˢ(z) = stokes_velocity(z)
 
-∂z_uˢ(z, t) = dstokes_dz(z, t)
+∂z_uˢ(z, t) = dstokes_dz(z)
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
@@ -123,7 +123,7 @@ fields_to_output = merge(model.velocities, model.tracers)
 
 simulation.output_writers[:fields] = JLD2OutputWriter(model, fields_to_output,
                                                       schedule = TimeInterval(output_interval),
-                                                      filename = "comparison_fields_.jld2",
+                                                      filename = "comparison_fields.jld2",
                                                       overwrite_existing = true,
                                                       with_halos = false)
 
@@ -136,7 +136,7 @@ wv = Average(w * v, dims=(1, 2))
 
 simulation.output_writers[:averages] = JLD2OutputWriter(model, (; U, V, wu, wv),
                                                         schedule = AveragedTimeInterval(output_interval, window=2minutes),
-                                                        filename = "comparison_averages_.jld2",
+                                                        filename = "comparison_averages.jld2",
                                                         overwrite_existing = true,
                                                         with_halos = false)
 
