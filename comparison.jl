@@ -96,11 +96,11 @@ model = NonhydrostaticModel(; grid, buoyancy, coriolis,
 @show model
 
 # Temperature initial condition: a stable density gradient with random noise superposed.
-@inline Tᵢ(x, y, z) = 20 + dTdz * z 
+Tᵢ(x, y, z) = 20 + dTdz * z 
 
 u★ = sqrt(abs(τx))
-@inline uᵢ(x, y, z) = u★ 
-@inline wᵢ(x, y, z) = u★ 
+uᵢ(x, y, z) = u★ 
+wᵢ(x, y, z) = u★ 
 
 set!(model, u=uᵢ, w=wᵢ, T=Tᵢ, S=35)
 
