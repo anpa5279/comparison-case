@@ -82,9 +82,9 @@ function dstokes_dz(z)
     return dudz
 end 
 
-uˢ(z) = stokes_velocity(z)
+@inline uˢ(z) = stokes_velocity(z)
 
-∂z_uˢ(z, t) = dstokes_dz(z)
+@inline ∂z_uˢ(z, t) = dstokes_dz(z)
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
@@ -101,14 +101,12 @@ model = NonhydrostaticModel(; grid, buoyancy, coriolis,
                             boundary_conditions = (u=u_bcs, T=T_bcs, S=S_bcs))
 @show model
 
-@inline Ξ(z) = randn() * exp(z / 4)
-
 # Temperature initial condition: a stable density gradient with random noise superposed.
-@inline Tᵢ(x, y, z) = 20 + dTdz * z + dTdz * model.grid.Lz * 1e-6 * Ξ(z)
+@inline Tᵢ(x, y, z) = 20 + dTdz * z 
 
 u★ = sqrt(abs(τx))
-@inline uᵢ(x, y, z) = u★ * 1e-1 * Ξ(z)
-@inline wᵢ(x, y, z) = u★ * 1e-1 * Ξ(z)
+@inline uᵢ(x, y, z) = u★ 
+@inline wᵢ(x, y, z) = u★ 
 
 set!(model, u=uᵢ, w=wᵢ, T=Tᵢ, S=35)
 
