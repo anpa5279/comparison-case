@@ -10,14 +10,13 @@ function plot()
     # running locally: using Pkg; Pkg.add("Oceananigans"); Pkg.add("CairoMakie"); Pkg.add("JLD2")
     Nranks = 4
 
-    fld_file="outputs/langmuir_turbulence_fields_0.jld2"
-    averages_file="outputs/langmuir_turbulence_averages_0.jld2"
+    fld_file="outputs/comparison_fields_0.jld2"
+    averages_file="outputs/comparison_averages_0.jld2"
 
     w_temp = FieldTimeSeries(fld_file, "w")
     u_temp = FieldTimeSeries(fld_file, "u")
     T_temp = FieldTimeSeries(fld_file, "T")
     S_temp = FieldTimeSeries(fld_file, "S")
-    B_temp = FieldTimeSeries(averages_file, "B")
     U_temp = FieldTimeSeries(averages_file, "U")
     V_temp = FieldTimeSeries(averages_file, "V")
     wu_temp = FieldTimeSeries(averages_file, "wu")
@@ -37,12 +36,10 @@ function plot()
     u_data = Array{Float64}(undef, (Nx, Ny, Nz, Nt))
     T_data = Array{Float64}(undef, (Nx, Ny, Nz, Nt))
     S_data = Array{Float64}(undef, (Nx, Ny, Nz, Nt))
-    B_data = Array{Float64}(undef, (1, 1, Nz, Nt))
     U_data = Array{Float64}(undef, (1, 1, Nz, Nt))
     V_data = Array{Float64}(undef, (1, 1, Nz, Nt))
     wu_data = Array{Float64}(undef, (1, 1, Nz + 1, Nt))  
     wv_data = Array{Float64}(undef, (1, 1, Nz + 1, Nt))
-    B_data .= 0
     U_data .= 0
     V_data .= 0
     wu_data .= 0
@@ -53,7 +50,6 @@ function plot()
     u_data[p:p + u_temp.grid.Nx - 1, :, :, :] .= u_temp.data
     T_data[p:p + T_temp.grid.Nx - 1, :, :, :] .= T_temp.data
     S_data[p:p + S_temp.grid.Nx - 1, :, :, :] .= S_temp.data
-    B_data .= B_data .+ B_temp.data
     U_data .= U_data .+ U_temp.data
     V_data .= V_data .+ V_temp.data
     wu_data .= wu_data .+ wu_temp.data
@@ -65,14 +61,13 @@ function plot()
 
         println("Loading rank $i")
 
-        fld_file="outputs/langmuir_turbulence_fields_$(i).jld2"
-        averages_file="outputs/langmuir_turbulence_averages_$(i).jld2"
+        fld_file="outputs/comparison_fields_rank$(i).jld2"
+        averages_file="outputs/comparison_averages_rank$(i).jld2"
 
         w_temp = FieldTimeSeries(fld_file, "w")
         u_temp = FieldTimeSeries(fld_file, "u")
         T_temp = FieldTimeSeries(fld_file, "T")
         S_temp = FieldTimeSeries(fld_file, "S")
-        B_temp = FieldTimeSeries(averages_file, "B")
         U_temp = FieldTimeSeries(averages_file, "U")
         V_temp = FieldTimeSeries(averages_file, "V")
         wu_temp = FieldTimeSeries(averages_file, "wu")
@@ -82,7 +77,6 @@ function plot()
         u_data[p:p + u_temp.grid.Nx - 1, :, :, :] .= u_temp.data
         T_data[p:p + T_temp.grid.Nx - 1, :, :, :] .= T_temp.data
         S_data[p:p + S_temp.grid.Nx - 1, :, :, :] .= S_temp.data
-        B_data .= B_data .+ B_temp.data
         U_data .= U_data .+ U_temp.data
         V_data .= V_data .+ V_temp.data
         wu_data .= wu_data .+ wu_temp.data
@@ -91,18 +85,17 @@ function plot()
     end
 
     #averaging
-    B_data = B_data ./ Nranks
     U_data = U_data ./ Nranks
     V_data = V_data ./ Nranks
     wu_data = wu_data ./ Nranks
     wv_data = wv_data ./ Nranks
 
     #calculating buoyancy from temperature and salinity
-    #beta = 7.80e-4
-    #alpha = 1.67e-4
-    #B_temp = Array{Float64}(undef, (1, 1, Nz, Nt))
-    #B_temp = g_Earth * (alpha * T_data - beta * S_data)
-    #B_data = Statistics.mean(B_temp, dims=(1, 2))
+    beta = 7.80e-4
+    alpha = 1.67e-4
+    B_temp = Array{Float64}(undef, (1, 1, Nz, Nt))
+    B_temp = g_Earth * (alpha * T_data - beta * S_data)
+    B_data = Statistics.mean(B_temp, dims=(1, 2))
     
     #putting everything back into FieldTimeSeries
     w = FieldTimeSeries{Center, Center, Face}(grid, times)
@@ -125,7 +118,7 @@ function plot()
     wu .= wu_data
     wv .= wv_data
 
-    @show B
+    @show w
 
     #begin plotting
     n = Observable(1)
