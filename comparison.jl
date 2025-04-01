@@ -13,25 +13,17 @@ mutable struct Params
     Nz::Int     # number of points in the vertical direction
     Lx::Float64
     Ly::Float64     # (m) domain horizontal extents
-    Lz::Float64     # (m) domain depth 
+    Lz::Float64     # (m) domain depth
 end
 
 #defaults, these can be changed directly below
-params = Params(32, 32, 32, 128.0, 128.0,160.0)
+params = Params(8, 8, 8, 128.0, 128.0,1.0)
 
 #global variables
-global u₁₀ = 10.0 # (m s⁻¹) wind speed at 10 meters above the ocean
+global u₁₀ = 6.0 # (m s⁻¹) wind speed at 10 meters above the ocean
 
-# Automatically distributing among available processors
-arch = Distributed(GPU())
-@show arch
-rank = arch.local_rank
-Nranks = MPI.Comm_size(arch.communicator)
-println("Hello from process $rank out of $Nranks")
-
-grid = RectilinearGrid(arch; size=(params.Nx, params.Ny, params.Nz), extent=(params.Lx, params.Ly, params.Lz))
-@show grid
-
+grid = RectilinearGrid(; size=(params.Nx, params.Ny, params.Nz), extent=(params.Lx, params.Ly, params.Lz))
+#@show grid
 # temperature and salinity boundary conditions
 buoyancy = SeawaterBuoyancy()
 
@@ -42,19 +34,13 @@ dTdz = -1e-3 # [°C m⁻¹]
 
 T_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(Q / (ρₒ * cᴾ)),
                                 bottom = GradientBoundaryCondition(dTdz))
-
-@show T_bcs
+#@show T_bcs
 
 S_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(0.0)) # no salt flux
-@show S_bcs
-
-# Stokes drift profile
-cᴰ = 2.5e-3 # dimensionless drag coefficient
-ρₐ = 1.225  # kg m⁻³, average density of air at sea-level
-τx = - ρₐ / ρₒ * cᴰ * u₁₀ * abs(u₁₀) # m² s⁻², surface stress
+#@show S_bcs
 
 #functions
-function stokes_velocity(z)
+function dstokes_dz(z)
     a = 0.1
     b = 5000.0
     Lf = b - a
@@ -62,41 +48,49 @@ function stokes_velocity(z)
     df = Lf / nf
     σ = a + 0.5 * df
     α = 0.00615
-    g_Earth = 9.81
     fₚ = 2π * 0.13 * g_Earth / u₁₀
-    u = 0.0
-    for i in 1:nf
-        u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z / g_Earth - (fₚ / σ)^4)
-        σ = σ + df
-    end 
-    return df * u
-end
-
-function dstokes_dz(z)
-    u0 = stokes_velocity(z)
-    u1 = stokes_velocity(z + 1e-6)
-    dudz = (u1 - u0) / (1e-6)
+    for j in 1:length(z)
+        u = 0.0
+        for i in 1:nf
+            u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z[j] / g_Earth - (fₚ / σ)^4)
+            σ = σ + df
+        end 
+        u0 = df * u #stokes drift 
+        u = 0.0
+        σ = a + 0.5 * df
+        z1 = z[j] + 1e-6
+        for i in 1:nf
+            u = u + 2.0 * α * g_Earth / (fₚ * σ) * exp(2.0 * σ^2 * z1 / g_Earth - (fₚ / σ)^4)
+            σ = σ + df
+        end 
+        u1 = df * u #stokes drift
+        dudz[j] = (u1 - u0) / (1e-6)
+        @show z[j]
+        @show u
+        @show dudz[j]
+    end
     return dudz
 end 
-
-uˢ(z) = stokes_velocity(z)
-
-∂z_uˢ(z, t) = dstokes_dz(z)
+@show dstokes_dz
+@show grid.Nz
+dudz = Array{Float64}(undef, grid.Nz)
+dudz = dstokes_dz(znodes(grid, Center()))
+@inline ∂z_uˢ(z, t) =
 
 τx = 0.025 # N m⁻²
 u_bcs = FieldBoundaryConditions(top = FluxBoundaryCondition(τx))
-@show u_bcs
+#@show u_bcs
 
-coriolis = FPlane(f=0.729e-4) # s⁻¹
+#coriolis = FPlane(f=0.729e-4) # s⁻¹
 
-model = NonhydrostaticModel(; grid, buoyancy, coriolis,
+model = NonhydrostaticModel(; grid, buoyancy, #coriolis,
                             advection = WENO(),
                             timestepper = :RungeKutta3,
                             tracers = (:T, :S),
                             closure = AnisotropicMinimumDissipation(),
                             stokes_drift = UniformStokesDrift(∂z_uˢ=∂z_uˢ),
                             boundary_conditions = (u=u_bcs, T=T_bcs, S=S_bcs))
-@show model
+#@show model
 
 # Temperature initial condition: a stable density gradient with random noise superposed.
 Tᵢ(x, y, z) = 20 + dTdz * z 
@@ -108,7 +102,7 @@ wᵢ(x, y, z) = u★
 set!(model, u=uᵢ, w=wᵢ, T=Tᵢ, S=35)
 
 simulation = Simulation(model, Δt=45.0, stop_time = 4hours)
-@show simulation
+#@show simulation
 
 conjure_time_step_wizard!(simulation, cfl=1.0, max_Δt=1minute)
 

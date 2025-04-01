@@ -37,7 +37,7 @@ end
 
 function plot()
     #grid setup
-    grid = RectilinearGrid(size = 128, z = (-96.0, 0.0), topology=(Flat, Flat, Bounded))
+    grid = RectilinearGrid(size = 8, z = (-1.0, 0.0), topology=(Flat, Flat, Bounded))
     Nz = grid.Nz
     Lz = grid.Lz
     z = grid.z.cᵃᵃᶜ[1:Nz]
@@ -49,6 +49,9 @@ function plot()
         z_pt = z[k]
         u_data[k] = stokes_velocity(z_pt)
         dudz_data[k] = dstokes_dz(z_pt, 0.0)
+        @show z_pt
+        @show u_data[k]
+        @show dudz_data[k]
     end
 
     u = FieldTimeSeries{Face, Center, Center}(grid, 0.0)
