@@ -154,4 +154,4 @@ simulation.output_writers[:fields] = JLD2Writer(model, fields_to_output,
                                                       overwrite_existing = true,
                                                       init = save_IC!)
 
-run!(simulation)
+run!(simulation; pickup = true)
