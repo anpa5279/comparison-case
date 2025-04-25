@@ -7,3 +7,6 @@ comparison_case.mp4
 test.o*
 *.png
 *.mp4
+*.jld2
+*.txt
+*.out
